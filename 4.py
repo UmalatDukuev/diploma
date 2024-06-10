@@ -69,22 +69,24 @@ class ParticleSwarmOptimizer:
         plt.title(f'Iteration {iter}')
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
-        plt.pause(0.001)
+        plt.pause(0.01)
 
 # Genetic Algorithm class
 class GeneticAlgorithm:
-    def __init__(self, objective_function, pop_size, bounds, max_iter, mutation_rate=0.01):
+    def __init__(self, objective_function, pop_size, bounds, max_iter, mutation_rate=0.01, crossover_rate=0.7, elitism=True):
         self.objective_function = objective_function
         self.pop_size = pop_size
         self.bounds = bounds
         self.max_iter = max_iter
         self.mutation_rate = mutation_rate
-        self.population = np.random.uniform(bounds[0], bounds[1], pop_size)
+        self.crossover_rate = crossover_rate
+        self.elitism = elitism
+        self.population = np.random.uniform(bounds[0], bounds[1], (pop_size, 1))
         self.best_individual = None
         self.best_score = float('inf')
 
     def evaluate(self):
-        scores = np.array([self.objective_function(ind) for ind in self.population])
+        scores = np.array([self.objective_function(ind) for ind in self.population.flatten()])
         best_index = np.argmin(scores)
         if scores[best_index] < self.best_score:
             self.best_score = scores[best_index]
@@ -92,21 +94,24 @@ class GeneticAlgorithm:
         return scores
 
     def select_parents(self, scores):
-        prob = 1 - scores / np.sum(scores)
-        prob = abs(prob)
-        prob /= np.sum(prob)
-        indices = np.random.choice(np.arange(self.pop_size), size=self.pop_size, p=prob)
+        # Convert scores to probabilities, higher scores mean lower probability
+        fitness = 1 / (1 + scores - np.min(scores))
+        fitness /= np.sum(fitness)
+        indices = np.random.choice(np.arange(self.pop_size), size=self.pop_size, p=fitness)
         return self.population[indices]
 
     def crossover(self, parent1, parent2):
-        alpha = np.random.rand()
-        child1 = alpha * parent1 + (1 - alpha) * parent2
-        child2 = alpha * parent2 + (1 - alpha) * parent1
-        return child1, child2
+        if np.random.rand() < self.crossover_rate:
+            alpha = np.random.rand()
+            child1 = alpha * parent1 + (1 - alpha) * parent2
+            child2 = alpha * parent2 + (1 - alpha) * parent1
+            return child1, child2
+        else:
+            return parent1, parent2
 
     def mutate(self, individual):
         if np.random.rand() < self.mutation_rate:
-            mutation = np.random.uniform(-1, 1)
+            mutation = np.random.uniform(-0.1, 0.1)
             individual += mutation
         return np.clip(individual, self.bounds[0], self.bounds[1])
 
@@ -116,11 +121,17 @@ class GeneticAlgorithm:
             scores = self.evaluate()
             parents = self.select_parents(scores)
             next_population = []
+            if self.elitism:
+                elite_index = np.argmin(scores)
+                elite = self.population[elite_index]
+                next_population.append(elite)
             for i in range(0, self.pop_size, 2):
                 parent1, parent2 = parents[i], parents[i+1]
                 child1, child2 = self.crossover(parent1, parent2)
                 next_population.append(self.mutate(child1))
                 next_population.append(self.mutate(child2))
+            if self.elitism:
+                next_population = next_population[:self.pop_size]
             self.population = np.array(next_population)
             self.plot(iter)
         plt.ioff()
@@ -131,7 +142,7 @@ class GeneticAlgorithm:
         X = np.linspace(self.bounds[0], self.bounds[1], 400)
         Y = self.objective_function(X)
         plt.plot(X, Y, label="Objective Function")
-        for ind in self.population:
+        for ind in self.population.flatten():
             plt.scatter(ind, self.objective_function(ind), color='red')
         plt.scatter(self.best_individual, self.objective_function(self.best_individual),
                     color='blue', marker='*', s=100)
@@ -142,7 +153,7 @@ class GeneticAlgorithm:
 
 # Function to start optimization based on user-selected algorithm
 def start_optimization(algorithm, pop_size, max_iter):
-    bounds = [-5, 2]
+    bounds = [-4, 4]
     if algorithm == 'PSO':
         optimizer = ParticleSwarmOptimizer(objective_function, pop_size, bounds, max_iter)
     elif algorithm == 'GA':
@@ -152,7 +163,7 @@ def start_optimization(algorithm, pop_size, max_iter):
 # Function to create the user interface
 def create_ui():
     root = tk.Tk()
-    root.title("Параметры алгоритма оптимизации")
+    root.title("Optimization Algorithm Parameters")
     root.geometry("400x400")  # Set window size
 
     mainframe = ttk.Frame(root, padding="10 10 10 10")
@@ -164,7 +175,7 @@ def create_ui():
     pop_size_var = tk.IntVar()
     max_iter_var = tk.IntVar()
 
-    ttk.Label(mainframe, text="Выберите алгоритм:").grid(column=1, row=1, sticky=tk.W)
+    ttk.Label(mainframe, text="Select Algorithm:").grid(column=1, row=1, sticky=tk.W)
 
     pso_radio = ttk.Radiobutton(mainframe, text="PSO", variable=algorithm_var, value="PSO")
     pso_radio.grid(column=2, row=1, sticky=tk.W)
@@ -172,11 +183,11 @@ def create_ui():
     ga_radio = ttk.Radiobutton(mainframe, text="GA", variable=algorithm_var, value="GA")
     ga_radio.grid(column=3, row=1, sticky=tk.W)
 
-    ttk.Label(mainframe, text="Размер популяции:").grid(column=1, row=2, sticky=tk.W)
+    ttk.Label(mainframe, text="Population Size:").grid(column=1, row=2, sticky=tk.W)
     pop_size_entry = ttk.Entry(mainframe, width=7, textvariable=pop_size_var)
     pop_size_entry.grid(column=2, row=2, sticky=(tk.W, tk.E))
 
-    ttk.Label(mainframe, text="Количество итераций:").grid(column=1, row=3, sticky=tk.W)
+    ttk.Label(mainframe, text="Number of Iterations:").grid(column=1, row=3, sticky=tk.W)
     max_iter_entry = ttk.Entry(mainframe, width=7, textvariable=max_iter_var)
     max_iter_entry.grid(column=2, row=3, sticky=(tk.W, tk.E))
 
@@ -187,7 +198,7 @@ def create_ui():
         root.destroy()
         start_optimization(algorithm, pop_size, max_iter)
 
-    ttk.Button(mainframe, text="Запуск", command=on_start).grid(column=1, row=4, columnspan=3)
+    ttk.Button(mainframe, text="Start", command=on_start).grid(column=1, row=4, columnspan=3)
 
     for child in mainframe.winfo_children():
         child.grid_configure(padx=5, pady=5)

@@ -5,7 +5,7 @@ from tkinter import ttk
 
 # Define the objective function with multiple local minima and one global minimum
 def objective_function(x):
-    return np.sin(5 * x) * np.sin(3 * x) * np.sin(x)
+    return np.sin(5 * x)
 
 # Particle class for PSO
 class Particle:
@@ -69,22 +69,23 @@ class ParticleSwarmOptimizer:
         plt.title(f'Iteration {iter}')
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
-        plt.pause(0.001)
+        plt.pause(0.01)
 
 # Genetic Algorithm class
 class GeneticAlgorithm:
-    def __init__(self, objective_function, pop_size, bounds, max_iter, mutation_rate=0.01):
+    def __init__(self, objective_function, pop_size, bounds, max_iter, mutation_rate=0.01, crossover_rate=0.7):
         self.objective_function = objective_function
         self.pop_size = pop_size
         self.bounds = bounds
         self.max_iter = max_iter
         self.mutation_rate = mutation_rate
-        self.population = np.random.uniform(bounds[0], bounds[1], pop_size)
+        self.crossover_rate = crossover_rate
+        self.population = np.random.uniform(bounds[0], bounds[1], (pop_size, 1))
         self.best_individual = None
         self.best_score = float('inf')
 
     def evaluate(self):
-        scores = np.array([self.objective_function(ind) for ind in self.population])
+        scores = np.array([self.objective_function(ind) for ind in self.population.flatten()])
         best_index = np.argmin(scores)
         if scores[best_index] < self.best_score:
             self.best_score = scores[best_index]
@@ -99,14 +100,17 @@ class GeneticAlgorithm:
         return self.population[indices]
 
     def crossover(self, parent1, parent2):
-        alpha = np.random.rand()
-        child1 = alpha * parent1 + (1 - alpha) * parent2
-        child2 = alpha * parent2 + (1 - alpha) * parent1
-        return child1, child2
+        if np.random.rand() < self.crossover_rate:
+            alpha = np.random.rand()
+            child1 = alpha * parent1 + (1 - alpha) * parent2
+            child2 = alpha * parent2 + (1 - alpha) * parent1
+            return child1, child2
+        else:
+            return parent1, parent2
 
     def mutate(self, individual):
         if np.random.rand() < self.mutation_rate:
-            mutation = np.random.uniform(-1, 1)
+            mutation = np.random.uniform(-0.1, 0.1)
             individual += mutation
         return np.clip(individual, self.bounds[0], self.bounds[1])
 
@@ -131,7 +135,7 @@ class GeneticAlgorithm:
         X = np.linspace(self.bounds[0], self.bounds[1], 400)
         Y = self.objective_function(X)
         plt.plot(X, Y, label="Objective Function")
-        for ind in self.population:
+        for ind in self.population.flatten():
             plt.scatter(ind, self.objective_function(ind), color='red')
         plt.scatter(self.best_individual, self.objective_function(self.best_individual),
                     color='blue', marker='*', s=100)
@@ -140,9 +144,10 @@ class GeneticAlgorithm:
         plt.ylabel('Y axis')
         plt.pause(0.01)
 
+
 # Function to start optimization based on user-selected algorithm
 def start_optimization(algorithm, pop_size, max_iter):
-    bounds = [-5, 2]
+    bounds = [-4, 4]
     if algorithm == 'PSO':
         optimizer = ParticleSwarmOptimizer(objective_function, pop_size, bounds, max_iter)
     elif algorithm == 'GA':
