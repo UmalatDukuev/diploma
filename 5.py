@@ -5,7 +5,7 @@ from tkinter import ttk
 
 # Define the objective function with multiple local minima and one global minimum
 def objective_function(x):
-    return np.sin(5 * x) * np.sin(3 * x) * np.sin(x)
+    return np.cos(7 * x) * np.cos(5 * x) * np.cos(3 * x) + 0.3 * (x - 2.5) ** 2
 
 # Particle class for PSO
 class Particle:
@@ -64,12 +64,12 @@ class ParticleSwarmOptimizer:
         plt.plot(X, Y, label="Objective Function")
         for particle in self.particles:
             plt.scatter(particle.position, self.objective_function(particle.position), color='red')
-        plt.scatter(self.global_best_position, self.objective_function(self.global_best_position),
-                    color='blue', marker='*', s=100)
+        # plt.scatter(self.global_best_position, self.objective_function(self.global_best_position),
+        #             color='blue', marker='*', s=100)
         plt.title(f'Iteration {iter}')
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
-        plt.pause(0.01)
+        plt.pause(0.3)
 
 # Genetic Algorithm class
 class GeneticAlgorithm:
@@ -144,12 +144,12 @@ class GeneticAlgorithm:
         plt.plot(X, Y, label="Objective Function")
         for ind in self.population.flatten():
             plt.scatter(ind, self.objective_function(ind), color='red')
-        plt.scatter(self.best_individual, self.objective_function(self.best_individual),
-                    color='blue', marker='*', s=100)
+        # plt.scatter(self.best_individual, self.objective_function(self.best_individual),
+        #             color='blue', marker='*', s=100)
         plt.title(f'Iteration {iter}')
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
-        plt.pause(0.01)
+        plt.pause(0.5)
 
 # Function to start optimization based on user-selected algorithm
 def start_optimization(algorithm, pop_size, max_iter, bounds):
