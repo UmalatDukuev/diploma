@@ -5,8 +5,8 @@ from tkinter import ttk
 
 def objective_function(x, y):
     A = 10
-    return A * 2 + (x ** 2 - A * np.cos(2 * np.pi * x)) + (y ** 2 - A * np.cos(2 * np.pi * y))
-
+    #return A * 2 + (x ** 2 - A * np.cos(2 * np.pi * x)) + (y ** 2 - A * np.cos(2 * np.pi * y))
+    return x**2 + y**2
 class Particle:
     def __init__(self, bounds):
         self.position = np.random.uniform(bounds[0], bounds[1], 2)
