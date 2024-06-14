@@ -5,8 +5,9 @@ from tkinter import ttk
 from scipy.optimize import differential_evolution
 
 def objective_function(x, y):
-    A = 10
-    return A * 2 + (x ** 2 - A * np.cos(2 * np.pi * x)) + (y ** 2 - A * np.cos(2 * np.pi * y))
+    #A = 10
+    #return A * 2 + (x ** 2 - A * np.cos(2 * np.pi * x)) + (y ** 2 - A * np.cos(2 * np.pi * y))
+    return x**2 + y**2
 
 class Particle:
     def __init__(self, bounds):
@@ -32,6 +33,7 @@ class ParticleSwarmOptimizer:
         self.global_best_position = None
         self.global_best_score = float('inf')
         self.target = target
+        self.particle_paths = [[] for _ in range(pop_size)]  # Добавляем список для хранения путей каждой частицы
 
     def find_initial_global_minimum(self):
         result = differential_evolution(lambda pos: self.objective_function(pos[0], pos[1]), [self.bounds, self.bounds])
@@ -46,13 +48,15 @@ class ParticleSwarmOptimizer:
                 self.global_best_position = particle.best_position.copy()
 
     def update_velocities_and_positions(self, inertia=0.5, cognitive=1.5, social=1.5):
-        for particle in self.particles:
+        for i, particle in enumerate(self.particles):
             r1, r2 = np.random.rand(2), np.random.rand(2)
             cognitive_velocity = cognitive * r1 * (particle.best_position - particle.position)
             social_velocity = social * r2 * (self.global_best_position - particle.position)
             particle.velocity = inertia * particle.velocity + cognitive_velocity + social_velocity
             particle.position += particle.velocity
             particle.position = np.clip(particle.position, self.bounds[0], self.bounds[1])
+            # Сохраняем текущее положение частицы в пути
+            self.particle_paths[i].append(particle.position.copy())
 
     def optimize(self):
         self.find_initial_global_minimum()  # Find global minimum using differential evolution
@@ -69,6 +73,11 @@ class ParticleSwarmOptimizer:
         plt.show()
         print(f"Global Minimum: Position: {self.global_best_position}, Score: {self.global_best_score}")
 
+    def plot_paths(self, iter):
+        for i, path in enumerate(self.particle_paths):
+            path = np.array(path)
+            plt.plot(path[:, 0], path[:, 1], color='white', alpha=0.3)  # Тонкая белая линия для пути частицы i
+
     def plot(self, iter):
         plt.clf()
         x = np.linspace(self.bounds[0], self.bounds[1], 100)
@@ -79,8 +88,8 @@ class ParticleSwarmOptimizer:
         plt.colorbar(label='Objective Function Value')
         for particle in self.particles:
             plt.scatter(*particle.position, color='red')
-        plt.scatter(*self.global_best_position, color='green', marker='x', s=100, label='Global Best')
         plt.scatter(*self.target, color='green', marker='x', s=100, label='Target')
+        self.plot_paths(iter)  # Добавляем отображение путей частиц
         plt.title(f'Iteration {iter}')
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
@@ -188,6 +197,7 @@ class GeneticAlgorithm:
 
 
 def start_optimization(algorithm, pop_size, max_iter, bounds, epsilon, use_epsilon):
+    # Найдем начальную глобальную минимум точку с помощью differential evolution
     result = differential_evolution(lambda pos: objective_function(pos[0], pos[1]), [bounds, bounds])
     global_minimum = result.x
     print(f"Initial Global Minimum found by Differential Evolution: {global_minimum}")
@@ -201,7 +211,6 @@ def start_optimization(algorithm, pop_size, max_iter, bounds, epsilon, use_epsil
                                      epsilon if use_epsilon else None, target=global_minimum)
         print('GA')
     optimizer.optimize()
-
 
 def create_ui():
     root = tk.Tk()
