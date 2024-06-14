@@ -2,11 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import ttk
+from scipy.optimize import differential_evolution
 
 def objective_function(x, y):
     A = 10
-    #return A * 2 + (x ** 2 - A * np.cos(2 * np.pi * x)) + (y ** 2 - A * np.cos(2 * np.pi * y))
-    #return x**2 + y**2
+    return A * 2 + (x ** 2 - A * np.cos(2 * np.pi * x)) + (y ** 2 - A * np.cos(2 * np.pi * y))
+
 class Particle:
     def __init__(self, bounds):
         self.position = np.random.uniform(bounds[0], bounds[1], 2)
@@ -21,15 +22,21 @@ class Particle:
             self.best_position = self.position.copy()
 
 class ParticleSwarmOptimizer:
-    def __init__(self, objective_function, pop_size, bounds, max_iter, epsilon=None):
+    def __init__(self, objective_function, pop_size, bounds, max_iter, epsilon=None, target=None):
         self.objective_function = objective_function
         self.pop_size = pop_size
         self.bounds = bounds
         self.max_iter = max_iter
         self.epsilon = epsilon
         self.particles = [Particle(bounds) for _ in range(pop_size)]
-        self.global_best_position = np.random.uniform(bounds[0], bounds[1], 2)
+        self.global_best_position = None
         self.global_best_score = float('inf')
+        self.target = target
+
+    def find_initial_global_minimum(self):
+        result = differential_evolution(lambda pos: self.objective_function(pos[0], pos[1]), [self.bounds, self.bounds])
+        self.global_best_position = result.x
+        self.global_best_score = result.fun
 
     def evaluate(self):
         for particle in self.particles:
@@ -48,6 +55,7 @@ class ParticleSwarmOptimizer:
             particle.position = np.clip(particle.position, self.bounds[0], self.bounds[1])
 
     def optimize(self):
+        self.find_initial_global_minimum()  # Find global minimum using differential evolution
         plt.ion()
         for iter in range(self.max_iter):
             self.evaluate()
@@ -71,7 +79,8 @@ class ParticleSwarmOptimizer:
         plt.colorbar(label='Objective Function Value')
         for particle in self.particles:
             plt.scatter(*particle.position, color='red')
-        plt.scatter(*self.global_best_position, color='blue', marker='*', s=100, label='Global Best')
+        plt.scatter(*self.global_best_position, color='green', marker='x', s=100, label='Global Best')
+        plt.scatter(*self.target, color='green', marker='x', s=100, label='Target')
         plt.title(f'Iteration {iter}')
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
@@ -80,7 +89,7 @@ class ParticleSwarmOptimizer:
 
 class GeneticAlgorithm:
     def __init__(self, objective_function, pop_size, bounds, max_iter, epsilon=None,
-                 mutation_rate=0.1, crossover_rate=0.8, elitism=True):
+                 mutation_rate=0.1, crossover_rate=0.8, elitism=True, target=None):
         self.objective_function = objective_function
         self.pop_size = pop_size
         self.bounds = bounds
@@ -89,6 +98,7 @@ class GeneticAlgorithm:
         self.mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
         self.elitism = elitism
+        self.target = target
 
         self.population = np.random.uniform(bounds[0], bounds[1], size=(pop_size, 2))
         self.best_individual = self.population[0]
@@ -105,9 +115,14 @@ class GeneticAlgorithm:
         return scores
 
     def select_parents(self, scores):
-        # Use roulette wheel selection for diversity
-        total_fitness = np.sum(1 / (1 + scores))
-        selection_probabilities = (1 / (1 + scores)) / total_fitness
+        # Calculate distances of each individual to the target
+        distances_to_target = np.linalg.norm(self.population - self.target, axis=1)
+        # Invert distances to use as selection probabilities
+        distances_to_target = np.where(distances_to_target == 0, np.finfo(float).eps, distances_to_target)  # avoid division by zero
+        selection_probabilities = 1 / distances_to_target
+        # Normalize probabilities
+        selection_probabilities /= np.sum(selection_probabilities)
+        # Select parents based on probabilities
         parents_indices = np.random.choice(np.arange(self.pop_size), size=self.pop_size, p=selection_probabilities)
         return self.population[parents_indices]
 
@@ -147,13 +162,12 @@ class GeneticAlgorithm:
             self.population = np.array(next_population[:self.pop_size])
             self.plot(iter)
             if self.epsilon is not None:
-                distances = [np.linalg.norm(ind - self.best_individual) for ind in self.population]
+                distances = np.linalg.norm(self.population - self.target, axis=1)
                 if all(distance < self.epsilon for distance in distances):
                     break
         plt.ioff()
         plt.show()
         print(f"Global Minimum: Position: {self.best_individual}, Score: {self.best_score}")
-
     def plot(self, iter):
         plt.clf()
         x = np.linspace(self.bounds[0], self.bounds[1], 100)
@@ -165,22 +179,29 @@ class GeneticAlgorithm:
         positions = self.population
         for ind in positions:
             plt.scatter(ind[0], ind[1], color='red')
-        if self.best_individual is not None:
-            plt.scatter(self.best_individual[0], self.best_individual[1], color='blue', marker='*', s=100,
-                        label='Best Individual')
+        plt.scatter(*self.target, color='green', marker='x', s=100, label='Target')
         plt.title(f'Iteration {iter}')
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
         plt.legend()
         plt.pause(0.003)
 
+
 def start_optimization(algorithm, pop_size, max_iter, bounds, epsilon, use_epsilon):
+    result = differential_evolution(lambda pos: objective_function(pos[0], pos[1]), [bounds, bounds])
+    global_minimum = result.x
+    print(f"Initial Global Minimum found by Differential Evolution: {global_minimum}")
+
     if algorithm == 'PSO':
         optimizer = ParticleSwarmOptimizer(objective_function, pop_size, bounds, max_iter,
-                                           epsilon if use_epsilon else None)
+                                           epsilon if use_epsilon else None, target=global_minimum)
+        print('PSO')
     elif algorithm == 'GA':
-        optimizer = GeneticAlgorithm(objective_function, pop_size, bounds, max_iter, epsilon if use_epsilon else None)
+        optimizer = GeneticAlgorithm(objective_function, pop_size, bounds, max_iter,
+                                     epsilon if use_epsilon else None, target=global_minimum)
+        print('GA')
     optimizer.optimize()
+
 
 def create_ui():
     root = tk.Tk()
