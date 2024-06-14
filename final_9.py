@@ -5,8 +5,6 @@ from tkinter import ttk
 from scipy.optimize import differential_evolution
 
 def objective_function(x, y):
-    #A = 10
-    #return A * 2 + (x ** 2 - A * np.cos(2 * np.pi * x)) + (y ** 2 - A * np.cos(2 * np.pi * y))
     return x**2 + y**2
 
 class Particle:
@@ -65,10 +63,16 @@ class ParticleSwarmOptimizer:
             self.evaluate()
             self.update_velocities_and_positions()
             self.plot(iter)
-            if self.epsilon is not None:
-                distances = [np.linalg.norm(particle.position - self.global_best_position) for particle in self.particles]
-                if all(distance < self.epsilon for distance in distances):
-                    break
+            # Вывод координат лучшей и худшей точки и их расстояния до глобального минимума
+            distances = [np.linalg.norm(particle.position - self.target) for particle in self.particles]
+            best_particle = self.particles[np.argmin(distances)]
+            worst_particle = self.particles[np.argmax(distances)]
+            best_distance = np.min(distances)
+            worst_distance = np.max(distances)
+            print(f"Iteration {iter}: Best Position: {best_particle.position}, Distance: {best_distance}")
+            print(f"Iteration {iter}: Worst Position: {worst_particle.position}, Distance: {worst_distance}")
+            if self.epsilon is not None and all(distance < self.epsilon for distance in distances):
+                break
         plt.ioff()
         plt.show()
         print(f"Global Minimum: Position: {self.global_best_position}, Score: {self.global_best_score}")
@@ -108,10 +112,10 @@ class GeneticAlgorithm:
         self.crossover_rate = crossover_rate
         self.elitism = elitism
         self.target = target
-
         self.population = np.random.uniform(bounds[0], bounds[1], size=(pop_size, 2))
         self.best_individual = self.population[0]
         self.best_score = self.objective_function(*self.best_individual)
+        self.paths = [[] for _ in range(pop_size)]  # Добавляем список для хранения путей каждой особи
         self.evaluate()
 
     def evaluate(self):
@@ -169,14 +173,27 @@ class GeneticAlgorithm:
                 if len(next_population) < self.pop_size:
                     next_population.append(self.mutate(child2))
             self.population = np.array(next_population[:self.pop_size])
+            for i, individual in enumerate(self.population):
+                self.paths[i].append(individual.copy())  # Сохраняем текущее положение особи в пути
             self.plot(iter)
-            if self.epsilon is not None:
-                distances = np.linalg.norm(self.population - self.target, axis=1)
-                if all(distance < self.epsilon for distance in distances):
-                    break
+            distances = np.linalg.norm(self.population - self.target, axis=1)
+            best_individual = self.population[np.argmin(distances)]
+            worst_individual = self.population[np.argmax(distances)]
+            best_distance = np.min(distances)
+            worst_distance = np.max(distances)
+            print(f"Iteration {iter}: Best Position: {best_individual}, Distance: {best_distance}")
+            print(f"Iteration {iter}: Worst Position: {worst_individual}, Distance: {worst_distance}")
+            if self.epsilon is not None and all(distance < self.epsilon for distance in distances):
+                break
         plt.ioff()
         plt.show()
         print(f"Global Minimum: Position: {self.best_individual}, Score: {self.best_score}")
+
+    def plot_paths(self, iter):
+        for i, path in enumerate(self.paths):
+            path = np.array(path)
+            plt.plot(path[:, 0], path[:, 1], color='white', alpha=0.3)  # Тонкая белая линия для пути индивидуума i
+
     def plot(self, iter):
         plt.clf()
         x = np.linspace(self.bounds[0], self.bounds[1], 100)
@@ -185,19 +202,17 @@ class GeneticAlgorithm:
         Z = self.objective_function(X, Y)
         plt.contourf(X, Y, Z, levels=50, cmap='viridis')
         plt.colorbar(label='Objective Function Value')
-        positions = self.population
-        for ind in positions:
+        for ind in self.population:
             plt.scatter(ind[0], ind[1], color='red')
         plt.scatter(*self.target, color='green', marker='x', s=100, label='Target')
+        self.plot_paths(iter)  # Добавляем отображение путей агентов
         plt.title(f'Iteration {iter}')
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
         plt.legend()
         plt.pause(0.003)
 
-
 def start_optimization(algorithm, pop_size, max_iter, bounds, epsilon, use_epsilon):
-    # Найдем начальную глобальную минимум точку с помощью differential evolution
     result = differential_evolution(lambda pos: objective_function(pos[0], pos[1]), [bounds, bounds])
     global_minimum = result.x
     print(f"Initial Global Minimum found by Differential Evolution: {global_minimum}")
@@ -215,7 +230,7 @@ def start_optimization(algorithm, pop_size, max_iter, bounds, epsilon, use_epsil
 def create_ui():
     root = tk.Tk()
     root.title("Optimization Algorithm Parameters")
-    root.geometry("400x400")  # Set window size
+    root.geometry("400x400")
 
     mainframe = ttk.Frame(root, padding="10 10 10 10")
     mainframe.grid(column=0, row=0, sticky=(tk.W, tk.E, tk.N, tk.S))
