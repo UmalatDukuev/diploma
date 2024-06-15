@@ -118,8 +118,7 @@ class GeneticAlgorithm:
         self.crossover_rate = crossover_rate
         self.elitism = elitism
         self.target = target
-        self.population = np.random.uniform(bounds[0], bounds[1],
-                                            size=(pop_size, 2))  # Используем bounds для инициализации
+        self.population = np.random.uniform(bounds[0], bounds[1], size=(pop_size, 2))
         self.velocities = np.random.uniform(-1, 1, size=(pop_size, 2))
         self.best_individual = self.population[0]
         self.best_score = self.objective_function(*self.best_individual)
@@ -226,7 +225,6 @@ class GeneticAlgorithm:
         plt.ylabel('Y axis')
         plt.legend()
         plt.pause(0.003)
-
 def start_optimization(algorithm, pop_size, max_iter, bounds, epsilon, use_epsilon):
     result = differential_evolution(lambda pos: objective_function(pos[0], pos[1]), [bounds, bounds])
     global_minimum = result.x
