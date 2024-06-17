@@ -6,11 +6,10 @@ from scipy.optimize import differential_evolution
 
 def objective_function(x, y):
     A = 10
-    return x**2 + y**2 # параболоид
+    #return x**2 + y**2 # параболоид
     #return (1 - x)**2 + 100 * (y - x**2)**2 # Функция Розенброка
     #return A * 2 + (x ** 2 - A * np.cos(2 * np.pi * x)) + (y ** 2 - A * np.cos(2 * np.pi * y)) # Функция Растригина
-    #####return (x**2 + y - 11)**2 + (y**2 + x - 7)**2 # Функция Химмельбау
-    #return 0.26*(x**2+y**2)-0.48*(x*y)
+    return 0.26*(x**2+y**2)-0.48*(x*y)
 
 class Particle:
     def __init__(self, bounds):
